@@ -11,6 +11,7 @@ var textStrings_EN = {
 	"tvOnTv": "A TV... ON TV!",
 	"cricky": "LIL' CRICKY <3",
 	"tooManyCrickets": "okay that's too many crickets",
+	"wayTooManyCrickets": "THAT'S REALLY TOO MANY CRICKETS",
 	"normalPeep": "just a normal peep",
 	"normalPeeps": "just some normal peeps",
 	"wowNothing": "WOWWEE, IT'S NOTHING",
@@ -822,3 +823,6 @@ var textStrings_TR = {
 	// (quote0004.png)
 	"misatrributed": "(yanlış bir şekilde ona atfedilir)",
 };
+
+// Set default language
+var textStrings = textStrings_EN;

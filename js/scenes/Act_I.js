@@ -7,11 +7,18 @@ ACT I: THE SETUP
 
 ******************************/
 
+// CRICKET INVASION TRACKING
+var CRICKET_COUNT = 0;
+var CRICKET_INVASION_THRESHOLD = 30;
+
 function Stage_Start(self){
 
     // Create Peeps
     self.world.clearPeeps();
     self.world.addBalancedPeeps(20);
+
+    // Reset cricket count
+    CRICKET_COUNT = 0;
 
 }
 
@@ -151,8 +158,17 @@ function _chyPeeps(d){
         });
         if(caught.crickets.length>0){
             p.CAUGHT_A_CRICKET = true;
+            p.CRICKET_COUNT_IN_PHOTO = caught.crickets.length;
+
+            // Debug: log cricket count
+            console.log("Caught crickets:", caught.crickets.length);
+
             if(caught.crickets.length==1){
                 d.chyron = textStrings["cricky"];
+            }else if(caught.crickets.length>=4){
+                console.log("WAY TOO MANY CRICKETS!");
+                d.chyron = textStrings["wayTooManyCrickets"];
+                p.WAY_TOO_MANY_CRICKETS = true;
             }else{
                 d.chyron = textStrings["tooManyCrickets"];
             }
@@ -214,6 +230,109 @@ function _cutHats(d){
     }
 }
 function _cutPeeps(d){
+    var p = d.photoData;
+
+    // Special case: WAY too many crickets - show 6 crickets watching TV
+    if(p.WAY_TOO_MANY_CRICKETS){
+        // No audience, just crickets
+        d.audience_cutToTV();
+
+        // Spawn 6 crickets watching the TV
+        var tv = d.tv;
+        for(var i=0; i<6; i++){
+            var cricket = new Cricket(d.scene);
+            cricket.watchTV();
+            cricket.x = tv.x - 150 + (i * 50); // Spread them out in a row
+            cricket.y = tv.y + Math.random() * 5; // Tiny offset for depth sorting
+            d.scene.world.addProp(cricket);
+        }
+
+        // Also spawn the normal crickets
+        var cricketsInPhoto = p.CRICKET_COUNT_IN_PHOTO || 1;
+        var cricketsToSpawn = cricketsInPhoto * 3;
+
+        for(var i=0; i<cricketsToSpawn; i++){
+            var cricket = new Cricket(d.scene);
+            cricket.x = Math.random() * Game.width;
+            cricket.y = Math.random() * Game.height;
+
+            if(Math.random() < 0.33){
+                cricket.startWandering();
+                CRICKET_COUNT++;
+            }else{
+                cricket.hopAwayTimeout = _s(1 + Math.random()*2);
+            }
+
+            d.scene.world.addProp(cricket);
+        }
+
+        // Check for cricket invasion!
+        if(CRICKET_COUNT >= CRICKET_INVASION_THRESHOLD){
+            setTimeout(function(){
+                Game.sceneManager.gotoScene("CricketInvasion");
+            }, _s(BEAT*4));
+            return true;
+        }
+
+        _calmPeepsDown(d.scene);
+        return true;
+    }
+
+    // Handle normal cricket spawning if we caught crickets
+    if(p.CAUGHT_A_CRICKET){
+        var cricketsInPhoto = p.CRICKET_COUNT_IN_PHOTO || 1;
+        var cricketsToSpawn = cricketsInPhoto * 3; // Spawn 3x what was in photo
+
+        for(var i=0; i<cricketsToSpawn; i++){
+            var cricket = new Cricket(d.scene);
+
+            // Random position
+            cricket.x = Math.random() * Game.width;
+            cricket.y = Math.random() * Game.height;
+
+            // 1/3 stay, 2/3 run away
+            if(Math.random() < 0.33){
+                // Stay and wander around
+                cricket.startWandering();
+                CRICKET_COUNT++;
+            }else{
+                // Run away after a short time
+                cricket.hopAwayTimeout = _s(1 + Math.random()*2);
+            }
+
+            d.scene.world.addProp(cricket);
+        }
+
+        // Check for cricket invasion!
+        if(CRICKET_COUNT >= CRICKET_INVASION_THRESHOLD){
+            // Trigger cricket invasion ending
+            setTimeout(function(){
+                Game.sceneManager.gotoScene("CricketInvasion");
+            }, _s(BEAT*4));
+            return true;
+        }
+
+        // Crickets calm people down
+        _calmPeepsDown(d.scene);
+    }
+
     d.audience_cutToTV();
     return true;
+}
+
+// Helper function to calm down angry peeps
+function _calmPeepsDown(scene){
+    var cricketCalm = Math.min(CRICKET_COUNT / CRICKET_INVASION_THRESHOLD, 1);
+
+    scene.world.peeps.forEach(function(peep){
+        // Reduce aggression for angry/nervous types
+        if(peep._CLASS_ == "AngryPeep" || peep._CLASS_ == "NervousPeep"){
+            if(Math.random() < cricketCalm * 0.3){
+                // Replace with normal peep
+                var normalPeep = new NormalPeep(scene);
+                normalPeep.setType(peep.type);
+                scene.world.replacePeep(peep, normalPeep);
+            }
+        }
+    });
 }
